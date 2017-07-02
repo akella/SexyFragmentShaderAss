@@ -12,7 +12,7 @@ app.get('/', function(req, res){
 
 app.get(/^(.+)$/, function(req, res){ 
     console.log('static file request : ' + req.params);
-    res.sendfile( __dirname + req.params[0]); 
+    res.sendFile( __dirname + req.params[0]); 
 });
 
 

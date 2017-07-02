@@ -1,0 +1,120 @@
+<!doctype html>
+<body>
+    <div id="container"></div>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/gsap/1.19.0/TweenMax.min.js"></script>
+    <script src="http://threejs.org/build/three.min.js"></script>
+    
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        uniform vec2 u_size;
+        uniform vec2 u_resolution;
+        void main() {
+			vUv = (position.xy+1.0)*0.3;
+			float scalex,scaley;
+			scalex = u_size.x/(u_resolution.x);
+			scaley = u_size.y/(u_resolution.y);
+			vUv.x = vUv.x/scalex;
+			vUv.y = vUv.y/scaley;
+			gl_Position =  vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        varying vec2 vUv;
+        uniform vec2 u_resolution;
+        uniform vec2 u_mouse;
+        uniform float u_time;
+        uniform sampler2D texture;
+        uniform sampler2D map;
+        uniform float u_animation;
+
+        void main() {
+            // vec2 st = gl_FragCoord.xy/u_resolution.xy;
+            float m =  (u_mouse.x/u_resolution.x - 0.5)*0.01;
+            float distort = sin(vUv.y * 100.0 + u_time)*0.001 + m;
+            float map = texture2D(map, vUv).r * u_animation;
+            vec4 color = texture2D(texture, vec2(vUv.x + distort*map,vUv.y));
+            // gl_FragColor = vec4(abs(sin(u_time)),0.0,0.0,1.0);
+
+            // gl_FragColor = vec4( vec3(0.0,1.0,0.0),1.0);
+
+            gl_FragColor = vec4(color.rgb*(1.0-map) + map* vec3(color.r + color.g + color.b)/3.0,1.0);
+
+        }
+    </script>
+
+    <script>
+        var container;
+        var camera, scene, renderer;
+        var uniforms;
+        var mouse = {x:0, y:0};
+        var loader = new THREE.TextureLoader();
+        document.onmousemove = getMouseXY;
+
+        init();
+        animate();
+        function getMouseXY(e) {
+            mouse.x = e.pageX;
+            mouse.y = e.pageY;
+            uniforms.u_mouse.value.x = mouse.x;
+            uniforms.u_mouse.value.y = mouse.y;
+        }
+        function init() {
+            container = document.getElementById( 'container' );
+            
+            camera = new THREE.Camera();
+            camera.position.z = 1;
+            scene = new THREE.Scene();
+            var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+
+            var MyTexture = loader.load( "img/foto.jpg" );
+
+            uniforms = {
+                u_time: { type: "f", value: 1.0 },
+                u_animation: { type: "f", value: 0.0 },
+                u_mouse: { type: "v2", value: new THREE.Vector2() },
+                u_resolution: { type: "v2", value: new THREE.Vector2() },
+                u_size: {type:"v2",value: new THREE.Vector2(MyTexture.image.width,MyTexture.image.height) },
+                texture: {value:MyTexture },
+                map: {value:loader.load( "img/popkamap.jpg" ) }
+            };
+            var material = new THREE.ShaderMaterial( {
+                uniforms: uniforms,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            } );
+            var mesh = new THREE.Mesh( geometry, material );
+            scene.add( mesh );
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio( window.devicePixelRatio );
+            
+            container.appendChild( renderer.domElement );
+            onWindowResize();
+            window.addEventListener( 'resize', onWindowResize, false );
+        }
+        function onWindowResize( event ) {
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            uniforms.u_resolution.value.x = renderer.domElement.width;
+            uniforms.u_resolution.value.y = renderer.domElement.height;
+            uniforms.u_mouse.value.x = mouse.x;
+            uniforms.u_mouse.value.y = mouse.y;
+        }
+        function animate() {
+            requestAnimationFrame( animate );
+            render();
+        }
+        function render() {
+            uniforms.u_time.value += 0.05;
+            renderer.render( scene, camera );
+        }
+
+        document.addEventListener('click',function(){
+            var tl = new TimelineMax();
+            tl
+                .to(uniforms.u_animation, 3, {value:1, ease: Power3.easeInOut})
+        })
+    </script>
+    
+</body>
+<!-- Copyright 2015 Patricio Gonzalez Vivo (http://patriciogonzalezvivo.com) -->
